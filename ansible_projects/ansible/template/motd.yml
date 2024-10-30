@@ -1,0 +1,14 @@
+---
+- name: Configure the message of the day
+  hosts: vm
+  become: true
+  vars:
+    - system_owner: jerome.decinco@redhat.com
+  tasks:
+    - name: Configure /etc/motd
+      ansible.builtin.template:
+        src: motd.j2
+        dest: /etc/motd
+        owner: root
+        group: root
+        mode: 0644

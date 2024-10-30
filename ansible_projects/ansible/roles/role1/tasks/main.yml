@@ -1,0 +1,34 @@
+---
+- name: Install and configure Apache HTTPD
+  ansible.builtin.dnf:
+    name: httpd
+    state: present
+
+- name: Start and Enable Apache HTTPD
+  ansible.builtin.service:
+    name: httpd
+    enabled: true
+    state: started
+
+- name: Install and verify firewalld
+  ansible.builtin.dnf:
+    name: firewalld
+    state: present
+
+- name: Start and Enable firewalld
+  ansible.builtin.service:
+    name: firewalld
+    enabled: true
+    state: started
+
+- name: Enable port 80 
+  ansible.posix.firewalld:
+    port: "{{ apache_port }}"
+    zone: public
+    permanent: true
+    immediate: true
+    state: enabled
+  notify: 
+    - Restart Apache
+    - Restart Firewalld
+

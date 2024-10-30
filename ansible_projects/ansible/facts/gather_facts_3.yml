@@ -1,0 +1,29 @@
+---
+- name: Esegui task solo su sistemi Rhel
+  hosts: vm
+  gather_facts: true
+  tasks:
+    - name: Creazione delle informazioni di sistema come una variabile
+      set_fact:
+        system_info: |
+          Distribuzione: {{ ansible_distribution }}
+          Versione Distribuzione: {{ ansible_distribution_version }}
+          Versione Maggiore: {{ ansible_distribution_major_version }}
+          Memoria Totale (MB): {{ ansible_facts['memtotal_mb'] }}
+          FQDN: {{ ansible_facts['fqdn'] }}
+
+    - name: Crea la directory locale per salvare i file
+      local_action:
+        module: file
+        path: "/tmp/system_info"
+        state: directory
+        mode: '0755'
+      delegate_to: localhost
+
+    - name: Salva informazioni di sistema in un file locale
+      local_action:
+        module: copy
+        content: "{{ system_info }}"
+        dest: "/tmp/system_info/{{ inventory_hostname }}_system_info.txt"
+      delegate_to: localhost
+      run_once: false  # Esegui per ogni host remoto

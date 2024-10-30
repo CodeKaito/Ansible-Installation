@@ -1,0 +1,14 @@
+---
+- name: Facts di sistema
+  hosts: vm
+  gather_facts: yes
+  tasks:
+    - name: Mostra tutti i facts
+      debug:
+        var: ansible_facts
+
+    - name: Mostra il nome dell'host e il sistema operativo
+      debug:
+        msg: |
+            Default IPv4 address: {{ ansible_facts['fqdn'] }}
+            is {{ ansible_facts.default_ipv4.address }}

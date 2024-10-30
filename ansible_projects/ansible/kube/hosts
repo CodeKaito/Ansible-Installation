@@ -1,0 +1,6 @@
+[masters]
+vm4 ansible_host=192.168.1.17 ansible_user= root
+
+[workers]
+vm2 ansible_host=192.168.1.16 ansible_user=root
+vm3 ansible_host=192.168.1.15 ansible_user=root

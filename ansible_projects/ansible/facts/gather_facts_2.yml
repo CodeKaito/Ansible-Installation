@@ -1,0 +1,15 @@
+---
+- name: Esegui task solo su sistemi Rhel
+  hosts: vm
+  gather_facts: true
+  tasks:
+      - name: Distribution
+        debug: msg="Questo é la distribution della macchina '{{ ansible_distribution }}'"
+      - name: Distribution version
+        debug: msg="{{ ansible_distribution_version}}"
+      - name: Distribution major version
+        debug: msg="{{ ansible_distribution_major_version }}"
+      - name: Total memory
+        debug: msg="{{ ansible_facts['memtotal_mb'] }}"
+      - name: FQDN
+        debug: msg="{{ ansible_facts['fqdn'] }}"
