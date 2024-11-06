@@ -21,12 +21,12 @@
 
   tasks:
     - name: Ensure lvm2 package is installed
-      ansible.builtin.package:
+      package:
         name: lvm2
         state: present
 
     - name: Create partition (optional if device already has a partition)
-      community.general.parted:
+      parted:
         device: "{{ device }}"
         number: 1
         state: present
@@ -39,38 +39,38 @@
       when: device not in ansible_facts.lvm.pvs
 
     - name: Create Volume Group (VG) if not exists
-      community.general.lvg:
+      lvg:
         vg: "{{ vg_name }}"
         pvs: "{{ device }}1"
       when: vg_name not in ansible_facts.lvm.vgs
 
     - name: Create Logical Volume (LV)
-      community.general.lvol:
+      lvol:
         vg: "{{ vg_name }}"
         lv: "{{ lv_name }}"
         size: "{{ lv_size }}"
         state: present
 
     - name: Create filesystem on the Logical Volume
-      community.general.filesystem:
+      filesystem:
         fstype: xfs
         dev: "/dev/{{ vg_name }}/{{ lv_name }}"
 
     - name: Create mount directory if it does not exist
-      ansible.builtin.file:
+      file:
         path: "{{ mount_path }}"
         state: directory
         mode: '0755'
 
     - name: Mount the Logical Volume
-      ansible.posix.mount:
+      mount:
         path: "{{ mount_path }}"
         src: "/dev/{{ vg_name }}/{{ lv_name }}"
         fstype: xfs
         state: mounted
 
     - name: Ensure mount persists on reboot
-      ansible.posix.mount:
+      mount:
         path: "{{ mount_path }}"
         src: "/dev/{{ vg_name }}/{{ lv_name }}"
         fstype: xfs
