@@ -1,0 +1,79 @@
+---
+- name: Configure LVM
+  hosts: vm
+  become: true
+  vars_prompt:
+    - name: "device"
+      prompt: "Enter the device for the partition or PV (e.g., /dev/sdb)"
+      private: no
+    - name: "vg_name"
+      prompt: "Enter the name for the Volume Group (e.g., vg_data)"
+      private: no
+    - name: "lv_name"
+      prompt: "Enter the name for the Logical Volume (e.g., lv_data)"
+      private: no
+    - name: "lv_size"
+      prompt: "Enter the size of the Logical Volume (e.g., 10G)"
+      private: no
+    - name: "mount_path"
+      prompt: "Enter the mount path for the Logical Volume (e.g., /mnt/data)"
+      private: no
+
+  tasks:
+    - name: Ensure lvm2 package is installed
+      package:
+        name: lvm2
+        state: present
+
+    - name: Create partition (optional if device already has a partition)
+      parted:
+        device: "{{ device }}"
+        number: 1
+        state: present
+        part_end: 100%
+        flags: [ lvm ]
+      ignore_errors: yes  # Ignore if already partitioned
+
+    - name: Initialize the Physical Volume (PV)
+      command: pvcreate "{{ device }}1"
+      when: device not in ansible_facts.lvm.pvs
+
+    - name: Create Volume Group (VG) if not exists
+      lvg:
+        vg: "{{ vg_name }}"
+        pvs: "{{ device }}1"
+      when: vg_name not in ansible_facts.lvm.vgs
+
+    - name: Create Logical Volume (LV)
+      lvol:
+        vg: "{{ vg_name }}"
+        lv: "{{ lv_name }}"
+        size: "{{ lv_size }}"
+        state: present
+
+    - name: Create filesystem on the Logical Volume
+      filesystem:
+        fstype: xfs
+        dev: "/dev/{{ vg_name }}/{{ lv_name }}"
+
+    - name: Create mount directory if it does not exist
+      file:
+        path: "{{ mount_path }}"
+        state: directory
+        mode: '0755'
+
+    - name: Mount the Logical Volume
+      mount:
+        path: "{{ mount_path }}"
+        src: "/dev/{{ vg_name }}/{{ lv_name }}"
+        fstype: xfs
+        state: mounted
+
+    - name: Ensure mount persists on reboot
+      mount:
+        path: "{{ mount_path }}"
+        src: "/dev/{{ vg_name }}/{{ lv_name }}"
+        fstype: xfs
+        opts: defaults
+        state: present
+
