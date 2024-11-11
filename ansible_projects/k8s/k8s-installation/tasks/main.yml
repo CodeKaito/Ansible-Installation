@@ -148,7 +148,7 @@
     msg: "{{ join_command.stdout }}"
   when: join_command is defined
 
-    #- name: Join worker node to the cluster
-    #command: "{{ hostvars['master']['join_command'].stdout }}"
-    #when: "'workers' in group_names and join_command is defined" 
+- name: Join worker node to the cluster
+  command: "{{ join_command }}"
+  when: "'workers' in group_names" 
 
