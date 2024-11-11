@@ -1,0 +1,9 @@
+- name: Create token
+  become: yes
+  command: 
+    cmd: kubeadm token create --print-join-command
+  register: join_command
+
+- name: Print token
+  debug:
+    msg: "{{ join_command.stdout }}"

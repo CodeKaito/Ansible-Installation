@@ -9,17 +9,22 @@
     msg: "{{ kubeadm_init_output.stdout }}"
 
 - name: Create the .kube directory in the user's home
-  file:
+  ansible.builtin.file:
     path: "{{ ansible_user_dir }}/.kube"
     state: directory
     mode: '0700'
-
+ 
 - name: Copy Kubernetes admin.conf to user's kube config
-  command: cp -i /etc/kubernetes/admin.conf {{ ansible_user_dir }}/.kube/config
-  become: yes
-
+  ansible.builtin.copy:
+    src: /etc/kubernetes/admin.conf
+    dest: "{{ ansible_user_dir }}/.kube/config"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+    remote_src: yes
+ 
 - name: Set proper ownership for kube config
-  file:
+  ansible.builtin.file:
     path: "{{ ansible_user_dir }}/.kube/config"
     owner: "{{ ansible_user }}"
     group: "{{ ansible_user }}"
