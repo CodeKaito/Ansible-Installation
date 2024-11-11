@@ -1,0 +1,12 @@
+---
+# tasks for k8s-installation role
+- name: Allow specific ports on Worker Nodes
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  with_items: "{{ ports.workers_ports}}"
+  notify:
+    - Reload workers firewalld
+

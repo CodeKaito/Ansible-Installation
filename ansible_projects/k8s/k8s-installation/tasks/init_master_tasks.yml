@@ -1,0 +1,28 @@
+- name: Initialize Kubernetes control plane
+  command: 
+    cmd: kubeadm init --control-plane-endpoint=k8s-master01
+  register: kubeadm_init_output
+  ignore_errors: yes
+
+- name: Display kubeadm init output
+  debug:
+    msg: "{{ kubeadm_init_output.stdout }}"
+
+- name: Create the .kube directory in the user's home
+  file:
+    path: "{{ ansible_user_dir }}/.kube"
+    state: directory
+    mode: '0700'
+
+- name: Copy Kubernetes admin.conf to user's kube config
+  command: cp -i /etc/kubernetes/admin.conf {{ ansible_user_dir }}/.kube/config
+  become: yes
+
+- name: Set proper ownership for kube config
+  file:
+    path: "{{ ansible_user_dir }}/.kube/config"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: '0644'
+  become: yes
+

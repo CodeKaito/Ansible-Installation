@@ -1,0 +1,15 @@
+- name: Add TCP ports for master node
+  ansible.posix.firewalld:
+    port: "{{ item }}"
+    permanent: true
+    state: enabled
+    immediate: true
+  with_items: "{{ ports.master_ports }}"
+
+- name: Add UDP port for VXLAN traffic
+  ansible.posix.firewalld:
+    permanent: true
+    port: 4789/udp
+    state: enabled
+  notify:
+    - Reload master-node firewalld

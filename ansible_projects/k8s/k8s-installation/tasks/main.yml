@@ -1,0 +1,155 @@
+---
+# tasks file for k8s-installation
+- name: Ping all hosts
+  ansible.builtin.ping:
+
+- name: Disable Swap Space On Each Node
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: '^.*\s+swap\s+' 
+    line: '#\0'             
+    backup: yes            
+
+- name: Adjust SELinux and Firewall Rules for Kubernetes
+  ansible.posix.selinux:
+    policy: targeted
+    state: permissive
+
+- name: Modify SELinux Configuration
+  ansible.builtin.lineinfile:
+    path: /etc/sysconfig/selinux
+    regexp: '^SELINUX=enforcing'
+    line: 'SELINUX=permissive'
+    backup: yes
+    state: present
+
+- name: Run tasks for master node
+  include_tasks: master_tasks.yml
+  when: "'master' in group_names"
+
+- name: Run tasks for worker nodes
+  include_tasks: workers_tasks.yml
+  when: "'workers' in group_names"
+
+- name: Add Kernel Modules and Parameters
+  ansible.builtin.copy:
+    dest: /etc/modules-load.d/containerd.conf
+    content: |
+      overlay
+      br_netfilter
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Load overlay module
+  community.general.modprobe:
+    name: overlay
+    state: present
+
+- name: Load br_netfilter module
+  community.general.modprobe:
+    name: br_netfilter
+    state: present 
+
+- name: Create file k8s.conf with the following configuration
+  ansible.builtin.copy:
+    dest: /etc/sysctl.d/k8s.conf
+    content: |
+      net.bridge.bridge-nf-call-iptables  = 1
+      net.ipv4.ip_forward                 = 1
+      net.bridge.bridge-nf-call-ip6tables = 1
+    owner: root
+    group: root
+    mode: '0644'
+
+- name: Reload sysctl
+  ansible.builtin.sysctl:
+    name: "{{ item }}"
+    value: "1"
+    state: present
+    reload: yes
+  loop:
+    - net.bridge.bridge-nf-call-iptables
+    - net.ipv4.ip_forward
+    - net.bridge.bridge-nf-call-ip6tables
+
+- name: Add Docker repository
+  command: dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo  
+
+- name: Install containerd package
+  ansible.builtin.dnf:
+    name: containerd.io
+    state: present
+
+- name: Generate default containerd configuration
+  command: containerd config default
+  register: containerd_config
+
+- name: Write containerd configuration to /etc/containerd/config.toml
+  ansible.builtin.copy:
+    content: "{{ containerd_config.stdout }}"
+    dest: /etc/containerd/config.toml
+    mode: '0644'
+
+- name: Enable SystemdCgroup in containerd config
+  ansible.builtin.lineinfile:
+    path: /etc/containerd/config.toml
+    regexp: '^SystemdCgroup = false'
+    line: 'SystemdCgroup = true'
+    backup: yes
+  notify:
+    - Reload containerd
+
+- name: Ensure containerd service is permanently enabled and started
+  ansible.builtin.systemd:
+    name: containerd
+    enabled: yes
+    state: started
+
+- name: Create Kubernetes repository file
+  ansible.builtin.copy:
+    content: |
+      [kubernetes]
+      name=Kubernetes
+      baseurl=https://pkgs.k8s.io/core:/stable:/v1.30/rpm/
+      enabled=1
+      gpgcheck=1
+      gpgkey=https://pkgs.k8s.io/core:/stable:/v1.30/rpm/repodata/repomd.xml.key
+      exclude=kubelet kubeadm kubectl cri-tools kubernetes-cni
+    dest: /etc/yum.repos.d/kubernetes.repo
+    mode: '0644'
+
+- name: Install kubelet, kubeadm, and kubectl
+  ansible.builtin.dnf:
+    name:
+      - kubelet
+      - kubeadm
+      - kubectl
+    state: present 
+    enablerepo: kubernetes
+    disable_excludes: "kubernetes"
+
+- name: Enable and start kubelet service
+  ansible.builtin.service:
+    name: kubelet
+    enabled: yes
+    state: started
+
+- name: Initialize master node
+  include_tasks: init_master_tasks.yml
+  when: "'master' in group_names"
+
+- name: Create kubeadm token and print join command on master
+  command: kubeadm token create --print-join-command
+  register: kubeadm_join_command
+  delegate_to: k8s-master01
+  when: "'master' in group_names" 
+
+- name: Display the join command
+  debug:
+    msg: "{{ kubeadm_join_command.stdout }}"
+
+- name: Join worker node to the cluster
+  command: "{{ kubeadm_join_command.stdout }}"
+  when: "'workers' in group_names" 
+

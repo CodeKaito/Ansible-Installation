@@ -1,0 +1,10 @@
+- name: Installation Kubernetes cluster
+  hosts: all
+  become: true
+  become_user: root
+  vars:
+    - ansible_user: kaito
+  vars_files:
+    - sudo_password.yml
+  roles:
+    - k8s-installation
